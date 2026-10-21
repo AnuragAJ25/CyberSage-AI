@@ -11,14 +11,14 @@ flowchart TD
         Manifests["Dependency Manifests (npm, pip, maven)"]
         Configs["IaC & Configs (Docker, K8s, Terraform)"]
         Logs["Security Logs (WAF, SIEM)"]
-        WebApps["Authorized Web Apps (SSRF-Guarded)"]
+        WebApps["Authorized Web Apps (SSRF-Guarded, Future Scope)"]
     end
 
-    subgraph Scanners ["2. Deterministic Scanners"]
-        SAST["SAST (Semgrep, Bandit)"]
-        SCA["SCA (Trivy, pip-audit)"]
+    subgraph Scanners ["2. Deterministic Scanners (Phase 2 MVP)"]
+        SAST["SAST (Semgrep)"]
+        SCA["SCA (OSV-Scanner)"]
         SecretScan["Secret Detection (Gitleaks)"]
-        DAST["DAST (OWASP ZAP / Custom HTTP)"]
+        DAST["Optional / Future: DAST (OWASP ZAP)"]
     end
 
     subgraph Engine ["3. Core Orchestration & Normalization"]
@@ -28,13 +28,13 @@ flowchart TD
         DB[(PostgreSQL Store)]
     end
 
-    subgraph AIOrchestration ["4. AI Reasoning (LangGraph & LangChain)"]
+    subgraph AIOrchestration ["4. AI Reasoning (Phase 3: LangGraph & LangChain)"]
         TriageAgent["Triage & Impact Explainer Agent"]
         FixGenAgent["Remediation Synthesis Agent"]
         LangGraph["LangGraph Stateful Workflow Coordinator"]
     end
 
-    subgraph Sandbox ["5. Verification Sandbox (Isolated)"]
+    subgraph Sandbox ["5. Verification Sandbox (Phase 4: Isolated Container)"]
         EphemeralEnv["Disposable Sandbox Container"]
         PatchApply["Apply Diff / Patch"]
         RegressionTest["Run Scanners & Test Suite"]
@@ -52,18 +52,18 @@ flowchart TD
     Manifests --> IngestService
     Configs --> IngestService
     Logs --> IngestService
-    WebApps --> IngestService
+    WebApps -.-> IngestService
 
     IngestService --> SAST
     IngestService --> SCA
     IngestService --> SecretScan
-    IngestService --> DAST
+    IngestService -.-> DAST
 
     %% Scanners to Normalizer
     SAST --> Normalizer
     SCA --> Normalizer
     SecretScan --> Normalizer
-    DAST --> Normalizer
+    DAST -.-> Normalizer
 
     Normalizer --> Correlator
     Correlator --> DB
@@ -94,21 +94,23 @@ flowchart TD
 - Accepts code repositories, dependency manifests, configuration files, and authorized web URLs.
 - Applies strict size limits, archive unpack quotas (zip-slip defense), and SSRF validation for web targets.
 
-### 2. Deterministic Scanner Tier
-- Runs isolated scanners (Semgrep, Trivy, Gitleaks, etc.) emitting standard machine-readable outputs (SARIF, JSON).
-- Scanner outputs represent empirical ground truth; LLMs are never used as substitute scanners.
+### 2. Deterministic Scanner Tier (MVP)
+- **SAST**: [Semgrep](https://semgrep.dev/) for AST-based rule analysis across Python, JavaScript, TypeScript, Go, and Java.
+- **SCA**: [OSV-Scanner](https://google.github.io/osv-scanner/) for precise open-source vulnerability database resolution against lockfiles and package manifests.
+- **Secrets**: [Gitleaks](https://github.com/gitleaks/gitleaks) for pattern- and entropy-based credential detection.
+- **Optional / Future Extensions**: OWASP ZAP for authorized dynamic web applications.
 
 ### 3. Normalization & Correlation
 - Standardizes diverse scanner payloads into a canonical `Finding` schema with CVE, CWE, CVSS v3.1, file coordinates, and contextual code snippets.
 - Deduplicates identical findings across scanner tools and correlates related security issues.
 
-### 4. AI Orchestration (LangGraph + LangChain)
+### 4. AI Orchestration (LangGraph + LangChain - Phase 3)
 - Coordinates bounded reasoning workflows using state machines.
 - **Triage Agent**: Explains vulnerability mechanics, attack vectors, and exploitability.
 - **Remediation Agent**: Produces unified diffs tailored to the codebase without introducing regressions or hallucinated dependencies.
 - Enforces strict Pydantic output schemas and treats inputs as untrusted data to mitigate prompt injection.
 
-### 5. Verification Sandbox
+### 5. Verification Sandbox (Phase 4)
 - Executes in an isolated disposable sandbox with resource and timeout bounds.
 - Applies the proposed patch, runs linters, unit tests, and rescans the target to verify that the vulnerability is neutralized without breaking existing functionality.
 
@@ -116,3 +118,8 @@ flowchart TD
 - Surfaces findings, AI explanations, verified diffs, and test results in the developer console.
 - Grants final authority to human developers: Accept, Edit, or Reject.
 - Automated merging or unapproved deployment is strictly prohibited.
+
+## Readiness & Diagnostics Architecture
+The API exposes honest diagnostics separating live traffic readiness from unimplemented roadmap components:
+- `/api/v1/health`: Liveness probe indicating process heartbeat and environment.
+- `/api/v1/ready`: Readiness probe returning 200 OK when core routing and configuration are initialized, while transparently reporting downstream scanners, AI reasoning, and sandboxes as `planned` or `standby`.

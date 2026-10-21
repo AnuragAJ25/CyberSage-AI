@@ -42,3 +42,8 @@ This document outlines the threat model for CyberSage AI using STRIDE principles
   - Read-only root filesystem where feasible.
   - No access to production database credentials or host environment variables.
   - Network isolation enabled during test suite execution.
+
+### 4. Secret Configuration & Credential Hardening
+- Secret keys and production credentials are never hardcoded in source files or configuration manifests.
+- The application runtime enforces cryptographic entropy validation on `SECRET_KEY`, rejecting known placeholders or empty keys in production.
+- Docker Compose configuration strictly requires environment variables via `${POSTGRES_PASSWORD:?...}` syntax, failing immediately if credentials are unset.

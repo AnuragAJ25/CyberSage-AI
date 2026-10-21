@@ -35,12 +35,12 @@ CyberSage AI combines deterministic, industry-standard security scanners (Semgre
 | Category | Capability | Status | Description |
 | :--- | :--- | :--- | :--- |
 | **Foundation** | Monorepo Layout & Tooling | **Implemented** | Monorepo structure, unified configurations, CI pipelines, pre-commit hooks. |
-| **Foundation** | Core FastAPI Health/Readiness | **Implemented** | Structured logging, typed Pydantic settings, `/api/v1/health` and `/api/v1/ready`. |
+| **Foundation** | Core FastAPI Health/Readiness | **Implemented** | Structured logging, typed Pydantic settings, honest `/api/v1/health` and `/api/v1/ready` probes. |
 | **Foundation** | Web Shell & Empty States | **Implemented** | Next.js 14, Tailwind CSS, dark-mode shell, interactive status monitor. |
-| **Scanner Engine** | SAST Scanner (Semgrep) | **Planned** | Deterministic static analysis for Python, JS/TS, Go, Java. |
-| **Scanner Engine** | SCA Scanner (Trivy) | **Planned** | Open-source dependency and SBOM vulnerability scanning. |
-| **Scanner Engine** | Secret Detection (Gitleaks) | **Planned** | Pattern and entropy-based hardcoded credential detection. |
-| **Scanner Engine** | DAST Scanner (ZAP / Custom) | **Planned** | SSRF-guarded dynamic vulnerability scanning for authorized domains. |
+| **Scanner Engine** | SAST Scanner (Semgrep) | **Planned** | Deterministic static analysis for Python, JS/TS, Go, Java (Phase 2 MVP). |
+| **Scanner Engine** | SCA Scanner (OSV-Scanner) | **Planned** | Dependency manifest and lockfile vulnerability resolution (Phase 2 MVP). |
+| **Scanner Engine** | Secret Detection (Gitleaks) | **Planned** | Pattern and entropy-based hardcoded credential detection (Phase 2 MVP). |
+| **Scanner Engine** | DAST Scanner (OWASP ZAP) | **Planned** | SSRF-guarded dynamic scanning for authorized web apps (Optional / Future Scope). |
 | **Correlation** | SARIF Unified Normalizer | **Planned** | Deduplication, CWE/CVE mapping, CVSS scoring. |
 | **AI Orchestration** | LangGraph Workflow Coordinator | **Planned** | Bounded stateful analysis graphs for triage and remediation. |
 | **AI Orchestration** | Triage & Explainer Agent | **Planned** | Root cause analysis and threat vector explanation. |
@@ -59,14 +59,14 @@ flowchart TD
         Manifests["Dependency Manifests (npm, pip, maven)"]
         Configs["IaC & Configs (Docker, K8s, Terraform)"]
         Logs["Security Logs (WAF, SIEM)"]
-        WebApps["Authorized Web Apps (SSRF-Guarded)"]
+        WebApps["Authorized Web Apps (SSRF-Guarded, Future Scope)"]
     end
 
-    subgraph Scanners ["2. Deterministic Scanners"]
-        SAST["SAST (Semgrep, Bandit)"]
-        SCA["SCA (Trivy, pip-audit)"]
+    subgraph Scanners ["2. Deterministic Scanners (Phase 2 MVP)"]
+        SAST["SAST (Semgrep)"]
+        SCA["SCA (OSV-Scanner)"]
         SecretScan["Secret Detection (Gitleaks)"]
-        DAST["DAST (OWASP ZAP / Custom HTTP)"]
+        DAST["Optional / Future: DAST (OWASP ZAP)"]
     end
 
     subgraph Engine ["3. Core Orchestration & Normalization"]
@@ -265,8 +265,14 @@ npm run dev
 ```
 - Frontend UI: `http://localhost:3000`
 
-### Docker Infrastructure (Optional / Database & Cache)
+### Docker Infrastructure (Database & Queue Services)
+Before starting Docker Compose, ensure `POSTGRES_PASSWORD` is configured in your environment or `.env` file (Compose strictly requires it):
 ```bash
+# Set secure password in environment:
+export POSTGRES_PASSWORD=your_secure_postgres_password_here
+# Windows PowerShell: $env:POSTGRES_PASSWORD="your_secure_postgres_password_here"
+
+# Start local infrastructure:
 docker-compose -f infra/docker-compose.yml up -d
 ```
 
@@ -293,18 +299,19 @@ CyberSage AI adheres to strict defense-in-depth principles:
 2. **SSRF Guardrails**: Target URLs for web scanning must undergo explicit domain ownership verification. Cloud metadata IPs (`169.254.169.254`) and private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`) are rejected.
 3. **Prompt Injection Mitigation**: Code snippets, manifests, and scanner outputs are isolated in prompt templates as untrusted data. AI agents emit structured schemas validated through Pydantic.
 4. **Mandatory Human-in-the-Loop**: Pull requests require explicit developer approval. Auto-merge and auto-deployment are disabled by architectural constraint.
+5. **Secret Hardening**: Production configuration rejects default or placeholder `SECRET_KEY` values (enforcing min 32 characters entropy). Diagnostics mask sensitive values.
 
 ---
 
 ## 10. Third-Party Tools & Acknowledgements
 
 CyberSage AI integrates with and acknowledges the following open-source cybersecurity tools and libraries:
-- [Semgrep](https://semgrep.dev/) — Fast static analysis for discovering security bugs.
-- [Trivy](https://aquasecurity.github.io/trivy/) — Comprehensive security scanner for container images and dependency manifests.
-- [Gitleaks](https://github.com/gitleaks/gitleaks) — Secret scanning for detecting exposed API keys and tokens.
-- [OWASP ZAP](https://www.zaproxy.org/) — Dynamic application security testing.
+- [Semgrep](https://semgrep.dev/) — AST-based static analysis for source code security.
+- [OSV-Scanner](https://google.github.io/osv-scanner/) — Open Source Vulnerabilities database scanner for dependency manifests.
+- [Gitleaks](https://github.com/gitleaks/gitleaks) — Pattern and entropy-based hardcoded credential detection.
 - [FastAPI](https://fastapi.tiangolo.com/) — Modern, fast Python web framework.
-- [LangChain](https://www.langchain.com/) & [LangGraph](https://www.langchain.com/langgraph) — Resilient agent orchestration framework.
+- [LangChain](https://www.langchain.com/) & [LangGraph](https://www.langchain.com/langgraph) — Resilient agent orchestration framework (Phase 3).
+- [OWASP ZAP](https://www.zaproxy.org/) — Dynamic application security testing (Optional / Future Scope).
 
 ---
 
